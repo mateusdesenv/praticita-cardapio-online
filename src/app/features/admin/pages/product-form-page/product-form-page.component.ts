@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, effect, inject, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AvailabilityStatus, PriceType } from '../../../../core/models/common.model';
@@ -57,11 +57,14 @@ import { CurrencyBrPipe } from '../../../../shared/pipes/currency-br.pipe';
         <label class="checkbox-row"><input type="checkbox" [(ngModel)]="form.isActive"> Ativo</label>
       </div>
       <div class="form-actions">
-        <button class="button" (click)="saveProduct()">Salvar produto</button>
+        <button class="button" (click)="saveProduct()" [disabled]="isSavingProduct">
+          {{ isSavingProduct ? 'Salvando...' : 'Salvar produto' }}
+        </button>
       </div>
+      <p class="form-feedback success" *ngIf="saveMessage">{{ saveMessage }}</p>
     </section>
 
-    <section class="form-card" *ngIf="!isNew && currentProduct() as product">
+    <section class="form-card" *ngIf="!isNew && currentProduct as product">
       <h2>Variações</h2>
       <p>Use para tamanhos, pesos ou versões com preço diferente.</p>
 
@@ -80,7 +83,7 @@ import { CurrencyBrPipe } from '../../../../shared/pipes/currency-br.pipe';
       </div>
 
       <div class="variation-list" style="margin-top: 16px;">
-        <div class="variation-item" *ngFor="let variation of variations(product.id)">
+        <div class="variation-item" *ngFor="let variation of productVariations; trackBy: trackById">
           <span><strong>{{ variation.name }}</strong> · {{ variation.sizeLabel || 'sem medida' }} · {{ variation.price | currencyBr }}</span>
           <span class="table-actions">
             <button class="button-ghost" (click)="editVariation(variation)">Editar</button>
@@ -90,7 +93,7 @@ import { CurrencyBrPipe } from '../../../../shared/pipes/currency-br.pipe';
       </div>
     </section>
 
-    <section class="form-card" *ngIf="!isNew && currentProduct() as product">
+    <section class="form-card" *ngIf="!isNew && currentProduct as product">
       <h2>Grupos de opções</h2>
       <p>Use para massa, recheios, coberturas e sabores.</p>
 
@@ -106,7 +109,7 @@ import { CurrencyBrPipe } from '../../../../shared/pipes/currency-br.pipe';
         <button class="button-ghost" *ngIf="editingGroupId" (click)="resetGroupForm()">Cancelar</button>
       </div>
 
-      <div class="nested-panel" *ngFor="let group of optionGroups(product.id)">
+      <div class="nested-panel" *ngFor="let group of productOptionGroups; trackBy: trackById">
         <div class="admin-header" style="margin-bottom: 8px;">
           <div>
             <h3>{{ group.name }}</h3>
@@ -125,7 +128,7 @@ import { CurrencyBrPipe } from '../../../../shared/pipes/currency-br.pipe';
         </div>
 
         <div class="variation-list" style="margin-top: 12px;">
-          <div class="variation-item" *ngFor="let option of group.options">
+          <div class="variation-item" *ngFor="let option of group.options; trackBy: trackById">
             <span>{{ option.name }} <strong *ngIf="option.additionalPrice > 0">+ {{ option.additionalPrice | currencyBr }}</strong></span>
             <span class="table-actions">
               <button class="button-ghost" (click)="toggleOption(option)">{{ option.isActive ? 'Inativar' : 'Ativar' }}</button>
@@ -141,9 +144,19 @@ export class ProductFormPageComponent implements OnInit {
   readonly menu = inject(MenuService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private hasLoadedProductForm = false;
+  private readonly syncProductState = effect(() => {
+    this.menu.data();
+    this.refreshProductState();
+  });
 
   isNew = true;
+  isSavingProduct = false;
+  saveMessage = '';
   productId: string | null = null;
+  currentProduct?: Product;
+  productVariations: ProductVariation[] = [];
+  productOptionGroups: ReturnType<MenuService['getOptionGroupsByProduct']> = [];
   priceTypes: PriceType[] = ['fixed', 'variation', 'unit', 'hundred', 'kg', 'package', 'quote'];
   availabilityStatuses: AvailabilityStatus[] = ['available', 'unavailable', 'on_request', 'quote'];
 
@@ -163,38 +176,41 @@ export class ProductFormPageComponent implements OnInit {
       const product = this.menu.getProductById(id);
       if (product) {
         this.form = { ...product };
-        this.seedOptionDrafts();
+        this.hasLoadedProductForm = true;
+        this.refreshProductState();
       }
     }
   }
 
-  currentProduct(): Product | undefined {
-    return this.productId ? this.menu.getProductById(this.productId) : undefined;
-  }
-
-  variations(productId: string): ProductVariation[] {
-    return this.menu.getVariationsByProduct(productId);
-  }
-
-  optionGroups(productId: string) {
-    const groups = this.menu.getOptionGroupsByProduct(productId);
-    groups.forEach((group) => {
-      this.optionDrafts[group.id] ??= { name: '', additionalPrice: 0 };
-    });
-    return groups;
+  trackById(_index: number, item: { id: string }): string {
+    return item.id;
   }
 
   async saveProduct(): Promise<void> {
     if (!this.form.name.trim()) return alert('Informe o nome do produto.');
     if (!this.form.categoryId) return alert('Selecione uma categoria.');
 
-    if (this.isNew) {
-      const created = await this.menu.createProduct(this.form);
-      await this.router.navigate(['/admin/produtos', created.id]);
-      this.isNew = false;
-      this.productId = created.id;
-    } else if (this.productId) {
-      await this.menu.updateProduct(this.productId, this.form);
+    this.isSavingProduct = true;
+    this.saveMessage = '';
+
+    try {
+      if (this.isNew) {
+        const created = await this.menu.createProduct(this.form);
+        await this.router.navigate(['/admin/produtos', created.id]);
+        this.isNew = false;
+        this.productId = created.id;
+        this.hasLoadedProductForm = false;
+        this.refreshProductState(true);
+        this.saveMessage = 'Produto criado com sucesso.';
+      } else if (this.productId) {
+        await this.menu.updateProduct(this.productId, this.form);
+        this.refreshProductState(true);
+        this.saveMessage = 'Produto atualizado com sucesso.';
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível salvar o produto.');
+    } finally {
+      this.isSavingProduct = false;
     }
   }
 
@@ -207,6 +223,7 @@ export class ProductFormPageComponent implements OnInit {
       await this.menu.createVariation({ ...this.variationForm, productId: product.id });
     }
     this.resetVariationForm();
+    this.refreshProductState();
   }
 
   editVariation(variation: ProductVariation): void {
@@ -217,6 +234,7 @@ export class ProductFormPageComponent implements OnInit {
   async deleteVariation(variation: ProductVariation): Promise<void> {
     if (!confirm(`Excluir variação "${variation.name}"?`)) return;
     await this.menu.deleteVariation(variation.id);
+    this.refreshProductState();
   }
 
   resetVariationForm(): void {
@@ -234,6 +252,7 @@ export class ProductFormPageComponent implements OnInit {
       this.optionDrafts[group.id] = { name: '', additionalPrice: 0 };
     }
     this.resetGroupForm();
+    this.refreshProductState();
   }
 
   editGroup(group: OptionGroup): void {
@@ -244,6 +263,7 @@ export class ProductFormPageComponent implements OnInit {
   async deleteGroup(group: OptionGroup): Promise<void> {
     if (!confirm(`Excluir grupo "${group.name}" e suas opções?`)) return;
     await this.menu.deleteOptionGroup(group.id);
+    this.refreshProductState();
   }
 
   resetGroupForm(): void {
@@ -262,20 +282,30 @@ export class ProductFormPageComponent implements OnInit {
       displayOrder: group.displayOrder + group.id.length
     });
     this.optionDrafts[group.id] = { name: '', additionalPrice: 0 };
+    this.refreshProductState();
   }
 
   async toggleOption(option: ProductOption): Promise<void> {
     await this.menu.updateProductOption(option.id, { isActive: !option.isActive });
+    this.refreshProductState();
   }
 
   async deleteOption(option: ProductOption): Promise<void> {
     await this.menu.deleteProductOption(option.id);
+    this.refreshProductState();
   }
 
-  private seedOptionDrafts(): void {
+  private refreshProductState(syncForm = false): void {
     if (!this.productId) return;
-    this.menu.getOptionGroupsByProduct(this.productId).forEach((group) => {
-      this.optionDrafts[group.id] = { name: '', additionalPrice: 0 };
+    this.currentProduct = this.menu.getProductById(this.productId);
+    if (this.currentProduct && (syncForm || !this.hasLoadedProductForm)) {
+      this.form = { ...this.currentProduct };
+      this.hasLoadedProductForm = true;
+    }
+    this.productVariations = this.menu.getVariationsByProduct(this.productId);
+    this.productOptionGroups = this.menu.getOptionGroupsByProduct(this.productId);
+    this.productOptionGroups.forEach((group) => {
+      this.optionDrafts[group.id] ??= { name: '', additionalPrice: 0 };
     });
   }
 

@@ -262,7 +262,7 @@ export class ImportExportPageComponent {
     const description = product.fullDescription || product.shortDescription;
     const details = [
       product.minQuantity ? `Pedido mínimo: ${product.minQuantity}` : '',
-      product.preparationDays ? `Preparo: ${product.preparationDays} dia(s)` : ''
+      product.preparationDays ? `Pedido com ${product.preparationDays} dia(s) de antecedência.` : '',
     ].filter(Boolean).join(' | ');
     const notes = [product.pricingNote, product.availabilityNote].filter(Boolean).join(' | ');
     const variations = this.buildVariationsMarkup(product.variations);
@@ -274,7 +274,7 @@ export class ImportExportPageComponent {
           <h3>${this.escapeHtml(product.name)}</h3>
           <span class="price">${this.escapeHtml(this.menu.getPriceLabel(product as Product))}</span>
         </div>
-        ${description ? `<p class="description">${this.escapeHtml(description)}</p>` : ''}
+        ${description ? `<p class="description">${this.formatMultilineHtml(description)}</p>` : ''}
         ${details ? `<p class="details">${this.escapeHtml(details)}</p>` : ''}
         ${notes ? `<p class="notes">${this.escapeHtml(notes)}</p>` : ''}
         ${variations}
@@ -320,5 +320,9 @@ export class ImportExportPageComponent {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  private formatMultilineHtml(value: unknown): string {
+    return this.escapeHtml(value).replace(/\r?\n/g, '<br>');
   }
 }
