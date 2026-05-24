@@ -3,7 +3,6 @@ import { Component, ElementRef, inject, ViewChild } from '@angular/core';
 import { MenuService } from '../../../../core/services/menu.service';
 import { MenuData, PublicMenuSection } from '../../../../core/models/menu-data.model';
 import { Product } from '../../../../core/models/product.model';
-import { ProductOption } from '../../../../core/models/product-option.model';
 import { ProductVariation } from '../../../../core/models/product-variation.model';
 import { formatCurrencyBR } from '../../../../core/utils/currency.util';
 
@@ -562,9 +561,13 @@ export class ImportExportPageComponent {
 
       .product-line {
         display: grid;
-        grid-template-columns: minmax(0, auto) 1fr auto;
+        grid-template-columns: minmax(0, 1fr) minmax(8mm, 1fr) auto;
         align-items: baseline;
         gap: 3mm;
+      }
+
+      .product-line.no-price {
+        grid-template-columns: 1fr;
       }
 
       .product-line h3 {
@@ -606,15 +609,33 @@ export class ImportExportPageComponent {
 
       .sublist {
         margin: 3.4mm 0 0;
-        padding: 3.4mm 0 0 5.2mm;
+        padding: 3.4mm 0 0;
         border-top: 0.25mm solid var(--brand-soft-line);
         color: #684c42;
         font-size: 3.55mm;
         line-height: 1.7;
+        list-style: none;
       }
 
       .sublist li {
         margin-bottom: 1.4mm;
+      }
+
+      .subitem {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: 5mm;
+      }
+
+      .subitem-label {
+        min-width: 0;
+      }
+
+      .subitem-price {
+        color: var(--brand-brown);
+        font-weight: 700;
+        white-space: nowrap;
       }
 
       .group-title {
@@ -802,7 +823,7 @@ export class ImportExportPageComponent {
   }
 
   private buildCategoryPdfPages(section: PublicMenuSection, businessName: string): string {
-    const chunks = this.chunkProducts(section.products, 7);
+    const chunks = this.paginateProducts(section);
 
     return chunks.map((products, index) => this.buildPdfPage(
       this.buildCategoryCardMarkup(section, products, index, chunks.length),
@@ -831,7 +852,7 @@ export class ImportExportPageComponent {
             ${titleParts.sub ? `<span class="card-subtitle">${this.escapeHtml(titleParts.sub)}</span>` : ''}
           </h2>
           <div class="mini-ornament"><span></span></div>
-          ${section.description ? `<p class="category-description">${this.escapeHtml(section.description)}</p>` : ''}
+          ${pageIndex === 0 && section.description ? `<p class="category-description">${this.escapeHtml(section.description)}</p>` : ''}
           ${hasContinuation ? `<span class="page-indicator">Página ${pageIndex + 1} de ${totalPages}</span>` : ''}
         </header>
         <div class="product-list">
@@ -855,13 +876,16 @@ export class ImportExportPageComponent {
     const notes = [product.pricingNote, product.availabilityNote].filter(Boolean).join(' | ');
     const variations = this.buildVariationsMarkup(product.variations);
     const options = this.buildOptionGroupsMarkup(product.optionGroups);
+    const priceLabel = this.getPdfProductPriceLabel(product);
 
     return `
       <article class="product">
-        <div class="product-line">
+        <div class="product-line ${priceLabel ? '' : 'no-price'}">
           <h3>${this.escapeHtml(product.name)}</h3>
-          <span class="leader"></span>
-          <span class="price">${this.escapeHtml(this.menu.getPriceLabel(product as Product))}</span>
+          ${priceLabel ? `
+            <span class="leader"></span>
+            <span class="price">${this.escapeHtml(priceLabel)}</span>
+          ` : ''}
         </div>
         ${description ? `<p class="description">${this.formatMultilineHtml(description)}</p>` : ''}
         ${details ? `<p class="details">${this.escapeHtml(details)}</p>` : ''}
@@ -872,6 +896,11 @@ export class ImportExportPageComponent {
     `;
   }
 
+  private getPdfProductPriceLabel(product: PublicMenuSection['products'][number]): string {
+    if (product.priceType === 'variation') return '';
+    return this.menu.getPriceLabel(product as Product);
+  }
+
   private buildVariationsMarkup(variations: ProductVariation[]): string {
     if (!variations.length) return '';
 
@@ -880,7 +909,13 @@ export class ImportExportPageComponent {
         ${variations.map((variation) => {
           const labels = [variation.sizeLabel, variation.weightLabel, variation.servesLabel].filter(Boolean).join(' - ');
           const minQuantity = variation.minQuantity ? ` - mínimo ${variation.minQuantity}` : '';
-          return `<li>${this.escapeHtml(variation.name)}${labels ? ` (${this.escapeHtml(labels)})` : ''}: ${this.escapeHtml(formatCurrencyBR(variation.price))}${this.escapeHtml(minQuantity)}</li>`;
+          const label = `${variation.name}${labels ? ` (${labels})` : ''}${minQuantity}`;
+          return `
+            <li class="subitem">
+              <span class="subitem-label">${this.escapeHtml(label)}</span>
+              <span class="subitem-price">${this.escapeHtml(formatCurrencyBR(variation.price))}</span>
+            </li>
+          `;
         }).join('')}
       </ul>
     `;
@@ -892,14 +927,14 @@ export class ImportExportPageComponent {
     return productGroups.map((group) => `
       <p class="group-title">${this.escapeHtml(group.name)}</p>
       <ul class="sublist">
-        ${group.options.map((option) => `<li>${this.escapeHtml(this.formatOption(option))}</li>`).join('')}
+        ${group.options.map((option) => `
+          <li class="subitem">
+            <span class="subitem-label">${this.escapeHtml(option.name)}</span>
+            ${option.additionalPrice ? `<span class="subitem-price">+ ${this.escapeHtml(formatCurrencyBR(option.additionalPrice))}</span>` : ''}
+          </li>
+        `).join('')}
       </ul>
     `).join('');
-  }
-
-  private formatOption(option: ProductOption): string {
-    if (!option.additionalPrice) return option.name;
-    return `${option.name} (+ ${formatCurrencyBR(option.additionalPrice)})`;
   }
 
   private splitTitle(value: string): { main: string; sub: string } {
@@ -920,15 +955,80 @@ export class ImportExportPageComponent {
     };
   }
 
-  private chunkProducts(
-    products: PublicMenuSection['products'],
-    size: number
-  ): PublicMenuSection['products'][] {
+  private paginateProducts(section: PublicMenuSection): PublicMenuSection['products'][] {
     const chunks: PublicMenuSection['products'][] = [];
-    for (let index = 0; index < products.length; index += size) {
-      chunks.push(products.slice(index, index + size));
+    let current: PublicMenuSection['products'] = [];
+    let currentHeight = 0;
+    let pageIndex = 0;
+    let budget = this.getCategoryProductsBudget(section, pageIndex);
+
+    for (const product of section.products) {
+      const productHeight = this.estimateProductHeight(product) + (current.length ? 4.8 : 0);
+
+      if (current.length && currentHeight + productHeight > budget) {
+        chunks.push(current);
+        current = [];
+        currentHeight = 0;
+        pageIndex += 1;
+        budget = this.getCategoryProductsBudget(section, pageIndex);
+      }
+
+      current.push(product);
+      currentHeight += productHeight;
     }
-    return chunks.length ? chunks : [products];
+
+    if (current.length) chunks.push(current);
+    return chunks.length ? chunks : [section.products];
+  }
+
+  private getCategoryProductsBudget(section: PublicMenuSection, pageIndex: number): number {
+    const hasImage = section.products.some((product) => this.getProductImage(product));
+    const descriptionHeight = pageIndex === 0 && section.description
+      ? this.estimateTextHeight(section.description, 76, 6.8) + 4
+      : 0;
+
+    return 160 - descriptionHeight - (hasImage ? 38 : 0);
+  }
+
+  private estimateProductHeight(product: PublicMenuSection['products'][number]): number {
+    const description = product.fullDescription || product.shortDescription;
+    const details = [
+      product.minQuantity ? `Pedido mínimo: ${product.minQuantity}` : '',
+      product.preparationDays ? `Pedido com ${product.preparationDays} dia(s) de antecedência.` : '',
+    ].filter(Boolean).join(' | ');
+    const notes = [product.pricingNote, product.availabilityNote].filter(Boolean).join(' | ');
+
+    let height = Math.max(8.5, this.estimateTextHeight(product.name, 48, 6.4));
+    if (description) height += 1.6 + this.estimateTextHeight(description, 82, 6.7);
+    if (details) height += 1.6 + this.estimateTextHeight(details, 82, 6.4);
+    if (notes) height += 1.6 + this.estimateTextHeight(notes, 82, 6.4);
+
+    if (product.variations.length) {
+      height += 5.5 + product.variations.reduce((total, variation) => {
+        const labels = [variation.sizeLabel, variation.weightLabel, variation.servesLabel].filter(Boolean).join(' - ');
+        const minQuantity = variation.minQuantity ? ` - mínimo ${variation.minQuantity}` : '';
+        return total + this.estimateTextHeight(`${variation.name} ${labels} ${minQuantity}`, 72, 5.8) + 1.4;
+      }, 0);
+    }
+
+    for (const group of product.optionGroups) {
+      height += 8.5 + group.options.reduce((total, option) => {
+        return total + this.estimateTextHeight(option.name, 72, 5.8) + 1.4;
+      }, 0);
+    }
+
+    return height;
+  }
+
+  private estimateTextHeight(value: unknown, charsPerLine: number, lineHeight: number): number {
+    const text = String(value ?? '').trim();
+    if (!text) return 0;
+
+    const lines = text.split(/\r?\n/).reduce((total, line) => {
+      return total + Math.max(1, Math.ceil(line.trim().length / charsPerLine));
+    }, 0);
+
+    return lines * lineHeight;
   }
 
   private getProductImage(product: PublicMenuSection['products'][number]): string {
