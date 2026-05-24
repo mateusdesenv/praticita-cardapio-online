@@ -638,6 +638,23 @@ export class ImportExportPageComponent {
         white-space: nowrap;
       }
 
+      .option-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 7mm;
+        row-gap: 1.4mm;
+        font-size: 3.35mm;
+        line-height: 1.42;
+      }
+
+      .option-list li {
+        margin-bottom: 0;
+      }
+
+      .option-list .subitem {
+        gap: 2mm;
+      }
+
       .group-title {
         margin: 4mm 0 0;
         color: var(--brand-copper);
@@ -823,13 +840,48 @@ export class ImportExportPageComponent {
   }
 
   private buildCategoryPdfPages(section: PublicMenuSection, businessName: string): string {
-    const chunks = this.paginateProducts(section);
+    const chunks = this.getManualCategoryChunks(section) ?? this.paginateProducts(section);
 
     return chunks.map((products, index) => this.buildPdfPage(
       this.buildCategoryCardMarkup(section, products, index, chunks.length),
       businessName,
       'category-page'
     )).join('');
+  }
+
+  private getManualCategoryChunks(section: PublicMenuSection): Array<PublicMenuSection['products']> | null {
+    if (section.slug !== 'bolos') return null;
+
+    const featuredCake = section.products.find((product) => product.slug === 'bolo-personalizado');
+    if (!featuredCake?.optionGroups.length) return null;
+
+    const fillingIndex = featuredCake.optionGroups.findIndex((group) => {
+      return group.name.trim().toLowerCase() === 'recheios';
+    });
+
+    if (fillingIndex <= 0) return null;
+
+    const beforeFillings = featuredCake.optionGroups.slice(0, fillingIndex);
+    const fillingsAndAfter = featuredCake.optionGroups.slice(fillingIndex);
+    const remainingProducts = section.products.filter((product) => product.id !== featuredCake.id);
+
+    return [
+      [{ ...featuredCake, optionGroups: beforeFillings }],
+      [
+        {
+          ...featuredCake,
+          shortDescription: '',
+          fullDescription: '',
+          minQuantity: null,
+          preparationDays: null,
+          availabilityNote: null,
+          pricingNote: null,
+          variations: [],
+          optionGroups: fillingsAndAfter
+        },
+        ...remainingProducts
+      ]
+    ];
   }
 
   private buildCategoryCardMarkup(
@@ -926,7 +978,7 @@ export class ImportExportPageComponent {
 
     return productGroups.map((group) => `
       <p class="group-title">${this.escapeHtml(group.name)}</p>
-      <ul class="sublist">
+      <ul class="sublist option-list">
         ${group.options.map((option) => `
           <li class="subitem">
             <span class="subitem-label">${this.escapeHtml(option.name)}</span>
@@ -1012,9 +1064,11 @@ export class ImportExportPageComponent {
     }
 
     for (const group of product.optionGroups) {
-      height += 8.5 + group.options.reduce((total, option) => {
-        return total + this.estimateTextHeight(option.name, 72, 5.8) + 1.4;
-      }, 0);
+      const rows = Math.max(1, Math.ceil(group.options.length / 2));
+      const tallestOption = group.options.reduce((max, option) => {
+        return Math.max(max, this.estimateTextHeight(option.name, 32, 4.8));
+      }, 4.8);
+      height += 8.8 + rows * Math.max(4.8, tallestOption);
     }
 
     return height;
