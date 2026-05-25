@@ -420,8 +420,8 @@ export class ImportExportPageComponent {
         margin: 0 auto;
         max-width: 125mm;
         color: var(--brand-muted);
-        font-size: 4.45mm;
-        line-height: 1.95;
+        font-size: 4.75mm;
+        line-height: 1.9;
         letter-spacing: 0.12mm;
       }
 
@@ -440,7 +440,7 @@ export class ImportExportPageComponent {
         border: 0.25mm solid var(--brand-line);
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.35);
-        font-size: 3.5mm;
+        font-size: 3.8mm;
         letter-spacing: 0.25mm;
       }
 
@@ -487,15 +487,15 @@ export class ImportExportPageComponent {
         display: block;
         margin-bottom: 1.8mm;
         color: var(--brand-brown);
-        font-size: 4.35mm;
+        font-size: 4.7mm;
         font-weight: 600;
       }
 
       .info-list span {
         display: block;
         color: var(--brand-muted);
-        font-size: 4mm;
-        line-height: 1.72;
+        font-size: 4.35mm;
+        line-height: 1.68;
       }
 
       .single-card-wrap > .category-card {
@@ -515,15 +515,15 @@ export class ImportExportPageComponent {
         max-width: 135mm;
         margin: 5mm auto 0;
         color: var(--brand-muted);
-        font-size: 4mm;
-        line-height: 1.8;
+        font-size: 4.35mm;
+        line-height: 1.74;
       }
 
       .page-indicator {
         display: inline-block;
         margin-top: 3mm;
         color: var(--brand-copper);
-        font-size: 3.2mm;
+        font-size: 3.5mm;
         letter-spacing: 0.45mm;
         text-transform: uppercase;
       }
@@ -558,9 +558,9 @@ export class ImportExportPageComponent {
         margin: 0;
         max-width: 100%;
         color: var(--brand-brown);
-        font-size: 4.45mm;
+        font-size: 4.9mm;
         font-weight: 600;
-        line-height: 1.42;
+        line-height: 1.38;
       }
 
       .leader {
@@ -572,7 +572,7 @@ export class ImportExportPageComponent {
 
       .price {
         color: var(--brand-brown);
-        font-size: 4.05mm;
+        font-size: 4.55mm;
         font-weight: 700;
         white-space: nowrap;
       }
@@ -582,8 +582,8 @@ export class ImportExportPageComponent {
       .notes {
         margin: 1.6mm 0 0;
         color: var(--brand-muted);
-        font-size: 3.75mm;
-        line-height: 1.78;
+        font-size: 4.2mm;
+        line-height: 1.7;
       }
 
       .notes {
@@ -596,8 +596,8 @@ export class ImportExportPageComponent {
         padding: 3.4mm 0 0;
         border-top: 0.25mm solid var(--brand-soft-line);
         color: #684c42;
-        font-size: 3.55mm;
-        line-height: 1.7;
+        font-size: 3.95mm;
+        line-height: 1.62;
         list-style: none;
       }
 
@@ -627,8 +627,8 @@ export class ImportExportPageComponent {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         column-gap: 7mm;
         row-gap: 1.4mm;
-        font-size: 3.35mm;
-        line-height: 1.42;
+        font-size: 3.8mm;
+        line-height: 1.38;
       }
 
       .option-list li {
@@ -642,7 +642,7 @@ export class ImportExportPageComponent {
       .group-title {
         margin: 4mm 0 0;
         color: var(--brand-copper);
-        font-size: 3.65mm;
+        font-size: 4mm;
         font-weight: 700;
         letter-spacing: 0.35mm;
         text-transform: uppercase;
@@ -691,7 +691,7 @@ export class ImportExportPageComponent {
         margin-top: 3mm;
         color: var(--brand-muted);
         text-align: center;
-        font-size: 3.35mm;
+        font-size: 3.65mm;
         letter-spacing: 0.1mm;
       }
 
@@ -796,7 +796,7 @@ export class ImportExportPageComponent {
       .thank-you-text {
         margin: 8mm 0 0;
         color: var(--brand-muted);
-        font-size: 3.6mm;
+        font-size: 3.95mm;
         letter-spacing: 0.1mm;
       }
 
@@ -1158,7 +1158,7 @@ export class ImportExportPageComponent {
     let budget = this.getCategoryProductsBudget(section, pageIndex);
 
     for (const product of section.products) {
-      const productHeight = this.estimateProductHeight(product) + (current.length ? 4.8 : 0);
+      const productHeight = this.estimateProductHeight(product) + (current.length ? 5.2 : 0);
 
       if (current.length && currentHeight + productHeight > budget) {
         chunks.push(current);
@@ -1181,7 +1181,7 @@ export class ImportExportPageComponent {
       && section.products.some((product) => this.getProductImage(product));
 
     const descriptionHeight = pageIndex === 0 && section.description
-      ? this.estimateTextHeight(section.description, 76, 6.8) + 4
+      ? this.estimateTextHeight(section.description, 68, 7.6) + 4
       : 0;
 
     return 176 - descriptionHeight - (hasImage ? 34 : 0);
@@ -1195,25 +1195,25 @@ export class ImportExportPageComponent {
     ].filter(Boolean).join(' | ');
     const notes = [product.pricingNote, product.availabilityNote].filter(Boolean).join(' | ');
 
-    let height = Math.max(8.5, this.estimateTextHeight(product.name, 48, 6.4));
-    if (description) height += 1.6 + this.estimateTextHeight(description, 82, 6.7);
-    if (details) height += 1.6 + this.estimateTextHeight(details, 82, 6.4);
-    if (notes) height += 1.6 + this.estimateTextHeight(notes, 82, 6.4);
+    let height = Math.max(9.2, this.estimateTextHeight(product.name, 43, 7.1));
+    if (description) height += 1.6 + this.estimateTextHeight(description, 74, 7.3);
+    if (details) height += 1.6 + this.estimateTextHeight(details, 74, 7);
+    if (notes) height += 1.6 + this.estimateTextHeight(notes, 74, 7);
 
     if (product.variations.length) {
       height += 5.5 + product.variations.reduce((total, variation) => {
         const labels = [variation.sizeLabel, variation.weightLabel, variation.servesLabel].filter(Boolean).join(' - ');
         const minQuantity = variation.minQuantity ? ` - mínimo ${variation.minQuantity}` : '';
-        return total + this.estimateTextHeight(`${variation.name} ${labels} ${minQuantity}`, 72, 5.8) + 1.4;
+        return total + this.estimateTextHeight(`${variation.name} ${labels} ${minQuantity}`, 64, 6.4) + 1.4;
       }, 0);
     }
 
     for (const group of product.optionGroups) {
       const rows = Math.max(1, Math.ceil(group.options.length / 2));
       const tallestOption = group.options.reduce((max, option) => {
-        return Math.max(max, this.estimateTextHeight(option.name, 32, 4.8));
-      }, 4.8);
-      height += 8.8 + rows * Math.max(4.8, tallestOption);
+        return Math.max(max, this.estimateTextHeight(option.name, 28, 5.3));
+      }, 5.3);
+      height += 8.8 + rows * Math.max(5.3, tallestOption);
     }
 
     return height;
